@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>VaultDL — Universal Downloader</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet"/>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #090b0f;
+    --surface: #0f1218;
+    --card: #141820;
+    --border: #1e2530;
+    --border-glow: #c9922a44;
+    --gold: #c9922a;
+    --gold-light: #e8b94a;
+    --gold-dim: #7a5418;
+    --text: #e8e2d6;
+    --muted: #6b7280;
+    --danger: #e05252;
+    --success: #4caf6e;
+    --cyan: #38bdf8;
+    --radius: 12px;
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ===== BACKGROUND ===== */
+  .bg-grid {
+    position: fixed; inset: 0; z-index: 0;
+    background-image:
+      linear-gradient(rgba(201,146,42,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(201,146,42,0.03) 1px, transparent 1px);
+    background-size: 60px 60px;
+    pointer-events: none;
+  }
+  .bg-glow {
+    position: fixed;
+    top: -20%; left: 50%;
+    transform: translateX(-50%);
+    width: 800px; height: 400px;
+    background: radial-gradient(ellipse, rgba(201,146,42,0.06) 0%, transparent 70%);
+    pointer-events: none; z-index: 0;
+  }
+
+  /* ===== LAYOUT ===== */
+  .app { position: relative; z-index: 1; max-width: 780px; margin: 0 auto; padding: 40px 20px 80px; }
+
+  /* ===== HEADER ===== */
+  .header { text-align: center; margin-bottom: 52px; }
+  .logo {
+    display: inline-flex; align-items: center; gap: 12px;
+    margin-bottom: 16px;
+  }
+  .logo-icon {
+    width: 44px; height: 44px;
+    background: linear-gradient(135deg, var(--gold-dim), var(--gold));
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px;
+    box-shadow: 0 0 30px rgba(201,146,42,0.3);
+  }
+  .logo-text {
+    font-family: 'Bebas Neue', cursive;
+    font-size: 36px;
+    letter-spacing: 4px;
+    background: linear-gradient(135deg, var(--gold-light), var(--gold));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .tagline {
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+
+  .platform-pills {
+    display: flex; flex-wrap: wrap; justify-content: center;
+    gap: 8px; margin-top: 20px;
+  }
+  .pill {
+    padding: 4px 12px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    font-size: 11px;
+    font-family: 'DM Mono', monospace;
+    color: var(--muted);
+    background: var(--surface);
+    transition: all 0.2s;
+  }
+  .pill:hover { border-color: var(--gold-dim); color: var(--gold-light); }
+
+  /* ===== CARD ===== */
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 28px;
+    transition: border-color 0.3s;
+  }
+  .card.glowing { border-color: var(--gold-dim); box-shadow: 0 0 40px rgba(201,146,42,0.08); }
+
+  /* ===== URL INPUT ===== */
+  .url-section { margin-bottom: 20px; }
+  .url-label {
+    display: block;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 2px;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+  .url-row { display: flex; gap: 10px; }
+  .url-input {
+    flex: 1;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    color: var(--text);
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .url-input:focus {
+    border-color: var(--gold-dim);
+    box-shadow: 0 0 0 3px rgba(201,146,42,0.1);
+  }
+  .url-input::placeholder { color: var(--muted); }
+
+  .btn {
+    border: none; cursor: pointer;
+    border-radius: 8px;
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 13px;
+    letter-spacing: 0.5px;
+    transition: all 0.2s;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .btn-gold {
+    background: linear-gradient(135deg, var(--gold), var(--gold-light));
+    color: #0a0600;
+    padding: 14px 22px;
+    box-shadow: 0 4px 20px rgba(201,146,42,0.25);
+  }
+  .btn-gold:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 28px rgba(201,146,42,0.4);
+  }
+  .btn-ghost {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 10px 18px;
+  }
+  .btn-ghost:hover:not(:disabled) { border-color: var(--gold-dim); color: var(--gold-light); }
+  .btn-ghost.active { border-color: var(--gold); color: var(--gold-light); background: rgba(201,146,42,0.08); }
+
+  /* ===== MEDIA TOGGLE ===== */
+  .toggle-row {
+    display: flex; gap: 10px; margin-bottom: 20px;
+  }
+  .toggle-btn {
+    flex: 1;
+    padding: 12px;
+    text-align: center;
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: 13px;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--muted);
+    transition: all 0.2s;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .toggle-btn:hover { border-color: var(--gold-dim); color: var(--text); }
+  .toggle-btn.active {
+    border-color: var(--gold);
+    color: var(--gold-light);
+    background: rgba(201,146,42,0.1);
+    box-shadow: inset 0 0 20px rgba(201,146,42,0.05);
+  }
+
+  /* ===== QUALITY SELECT ===== */
+  .quality-section { margin-bottom: 24px; }
+  .quality-grid { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+  .quality-chip {
+    padding: 8px 16px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .quality-chip:hover { border-color: var(--gold-dim); color: var(--text); }
+  .quality-chip.active {
+    border-color: var(--gold);
+    color: var(--gold-light);
+    background: rgba(201,146,42,0.12);
+  }
+
+  /* ===== VIDEO PREVIEW ===== */
+  .preview {
+    display: flex; gap: 16px; align-items: flex-start;
+    padding: 16px;
+    background: var(--surface);
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    margin-bottom: 20px;
+    animation: slideIn 0.3s ease;
+  }
+  .thumb-wrap {
+    width: 120px; min-width: 120px; height: 72px;
+    border-radius: 6px; overflow: hidden;
+    background: var(--bg);
+    position: relative;
+  }
+  .thumb-wrap img { width: 100%; height: 100%; object-fit: cover; }
+  .platform-badge {
+    position: absolute; top: 4px; left: 4px;
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    font-weight: 500;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: rgba(0,0,0,0.7);
+    color: var(--gold-light);
+    text-transform: uppercase;
+  }
+  .meta { flex: 1; overflow: hidden; }
+  .meta-title {
+    font-weight: 700; font-size: 14px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    margin-bottom: 6px;
+  }
+  .meta-row {
+    display: flex; gap: 12px;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  /* ===== PROGRESS ===== */
+  .progress-wrap { margin-bottom: 20px; }
+  .progress-header {
+    display: flex; justify-content: space-between;
+    font-family: 'DM Mono', monospace; font-size: 12px;
+    color: var(--muted); margin-bottom: 8px;
+  }
+  .progress-bar-bg {
+    height: 6px;
+    background: var(--surface);
+    border-radius: 999px;
+    overflow: hidden;
+  }
+  .progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, var(--gold), var(--gold-light));
+    border-radius: 999px;
+    transition: width 0.3s ease;
+    box-shadow: 0 0 10px rgba(201,146,42,0.5);
+  }
+  .progress-bar.pulse { animation: pulse 1.5s ease-in-out infinite; }
+
+  @keyframes pulse {
+    0%, 100% { box-shadow: 0 0 10px rgba(201,146,42,0.5); }
+    50% { box-shadow: 0 0 20px rgba(201,146,42,0.9); }
+  }
+
+  /* ===== STATUS MESSAGES ===== */
+  .status-msg {
+    padding: 12px 16px; border-radius: 8px;
+    font-family: 'DM Mono', monospace; font-size: 12px;
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 16px; animation: slideIn 0.2s ease;
+  }
+  .status-error { background: rgba(224,82,82,0.1); border: 1px solid rgba(224,82,82,0.3); color: #fc8585; }
+  .status-success { background: rgba(76,175,110,0.1); border: 1px solid rgba(76,175,110,0.3); color: #6fcf97; }
+  .status-info { background: rgba(56,189,248,0.08); border: 1px solid rgba(56,189,248,0.2); color: var(--cyan); }
+
+  /* ===== DIVIDER ===== */
+  .divider {
+    border: none; border-top: 1px solid var(--border);
+    margin: 20px 0;
+  }
+
+  /* ===== LOADING SPINNER ===== */
+  .spinner {
+    width: 16px; height: 16px;
+    border: 2px solid rgba(201,146,42,0.2);
+    border-top-color: var(--gold);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    display: inline-block;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ===== HISTORY ===== */
+  .history-section { margin-top: 40px; }
+  .section-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 2px;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 14px;
+  }
+  .history-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 16px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-bottom: 8px;
+    animation: slideIn 0.2s ease;
+  }
+  .history-icon { font-size: 18px; flex-shrink: 0; }
+  .history-title { flex: 1; font-size: 13px; font-weight: 600; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .history-meta { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .history-dl-btn {
+    padding: 6px 14px;
+    font-size: 12px;
+    border-radius: 6px;
+    border: 1px solid var(--gold-dim);
+    background: rgba(201,146,42,0.1);
+    color: var(--gold-light);
+    cursor: pointer;
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    transition: all 0.15s;
+    flex-shrink: 0;
+  }
+  .history-dl-btn:hover { background: rgba(201,146,42,0.2); }
+
+  /* ===== FOOTER ===== */
+  .footer {
+    text-align: center;
+    margin-top: 60px;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+  }
+  .footer span { color: var(--gold-dim); }
+
+  /* ===== ANIMATIONS ===== */
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  .fade-in { animation: fadeIn 0.4s ease; }
+
+  /* ===== RESPONSIVE ===== */
+  @media (max-width: 600px) {
+    .url-row { flex-direction: column; }
+    .preview { flex-direction: column; }
+    .thumb-wrap { width: 100%; height: 160px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="bg-grid"></div>
+<div class="bg-glow"></div>
+
+<div class="app" id="root"></div>
+
+<script>
+const API = 'http://localhost:5000';
+
+const PLATFORMS = ['YouTube','Instagram','Twitter/X','TikTok','Facebook','Vimeo','Twitch','Reddit','Pinterest','SoundCloud','Dailymotion','Bilibili'];
+
+// ── State ──────────────────────────────────────────────────────────────
+let state = {
+  url: '',
+  loading: false,
+  info: null,
+  error: null,
+  mediaType: 'video',
+  selectedFormat: null,
+  taskId: null,
+  progress: 0,
+  progressStatus: null,
+  downloadReady: false,
+  history: JSON.parse(localStorage.getItem('vaultdl_history') || '[]'),
+  pollingInterval: null,
+};
+
+function setState(patch) {
+  Object.assign(state, patch);
+  render();
+}
+
+// ── Helpers ────────────────────────────────────────────────────────────
+function formatDuration(secs) {
+  if (!secs) return '--:--';
+  const m = Math.floor(secs / 60), s = secs % 60;
+  return `${m}:${String(s).padStart(2,'0')}`;
+}
+function formatViews(n) {
+  if (!n) return '';
+  if (n >= 1e6) return (n/1e6).toFixed(1)+'M views';
+  if (n >= 1e3) return (n/1e3).toFixed(1)+'K views';
+  return n+' views';
+}
+function formatFilesize(bytes) {
+  if (!bytes) return '';
+  if (bytes >= 1e9) return (bytes/1e9).toFixed(1)+' GB';
+  if (bytes >= 1e6) return (bytes/1e6).toFixed(0)+' MB';
+  return (bytes/1e3).toFixed(0)+' KB';
+}
+
+// ── API Calls ──────────────────────────────────────────────────────────
+async function fetchInfo() {
+  if (!state.url.trim()) return;
+  setState({ loading: true, info: null, error: null, downloadReady: false, taskId: null, progress: 0, selectedFormat: null });
+
+  try {
+    const res = await fetch(`${API}/api/info?url=${encodeURIComponent(state.url)}`);
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+
+    const defaultFormat = state.mediaType === 'video' 
+      ? data.formats[0] 
+      : data.audio_formats[0];
+
+    setState({ info: data, loading: false, selectedFormat: defaultFormat });
+  } catch (e) {
+    setState({ loading: false, error: e.message });
+  }
+}
+
+async function startDownload() {
+  if (!state.url || !state.selectedFormat) return;
+  if (state.pollingInterval) clearInterval(state.pollingInterval);
+
+  setState({ loading: true, error: null, downloadReady: false, progress: 0, progressStatus: 'starting' });
+
+  try {
+    const res = await fetch(`${API}/api/download`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        url: state.url,
+        format_id: state.selectedFormat.format_id,
+        type: state.mediaType,
+      })
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+
+    setState({ taskId: data.task_id, loading: false });
+    pollProgress(data.task_id);
+  } catch (e) {
+    setState({ loading: false, error: e.message });
+  }
+}
+
+function pollProgress(taskId) {
+  const interval = setInterval(async () => {
+    try {
+      const res = await fetch(`${API}/api/progress/${taskId}`);
+      const data = await res.json();
+
+      if (data.status === 'done') {
+        clearInterval(interval);
+        const title = state.info?.title || 'Download';
+        const newHistory = [
+          { taskId, title, type: state.mediaType, quality: state.selectedFormat?.label, platform: state.info?.platform },
+          ...state.history
+        ].slice(0, 10);
+        localStorage.setItem('vaultdl_history', JSON.stringify(newHistory));
+        setState({ progress: 100, progressStatus: 'done', downloadReady: true, history: newHistory, pollingInterval: null });
+      } else if (data.status === 'error') {
+        clearInterval(interval);
+        setState({ error: data.error || 'Download failed', progressStatus: 'error', pollingInterval: null });
+      } else {
+        setState({ progress: data.percent || 0, progressStatus: data.status, pollingInterval: interval });
+      }
+    } catch (e) {
+      clearInterval(interval);
+      setState({ error: 'Lost connection to server', pollingInterval: null });
+    }
+  }, 800);
+}
+
+function triggerFileDownload(taskId) {
+  window.location.href = `${API}/api/file/${taskId}`;
+}
+
+// ── Render ─────────────────────────────────────────────────────────────
+function render() {
+  const root = document.getElementById('root');
+  const { url, loading, info, error, mediaType, selectedFormat, progress, progressStatus, downloadReady, taskId, history } = state;
+  const formats = mediaType === 'video' ? info?.formats : info?.audio_formats;
+  const isDownloading = progressStatus && progressStatus !== 'done' && progressStatus !== 'error';
+
+  root.innerHTML = `
+    <!-- HEADER -->
+    <header class="header fade-in">
+      <div class="logo">
+        <div class="logo-icon">⬇</div>
+        <div class="logo-text">VaultDL</div>
+      </div>
+      <div class="tagline">Universal Media Downloader · Powered by yt-dlp</div>
+      <div class="platform-pills">
+        ${PLATFORMS.map(p => `<span class="pill">${p}</span>`).join('')}
+      </div>
+    </header>
+
+    <!-- MAIN CARD -->
+    <div class="card ${info ? 'glowing' : ''}">
+
+      <!-- URL INPUT -->
+      <div class="url-section">
+        <label class="url-label">🔗 Paste Video / Audio URL</label>
+        <div class="url-row">
+          <input class="url-input" id="urlInput" type="url"
+            placeholder="https://youtube.com/watch?v=..."
+            value="${url.replace(/"/g,'&quot;')}"
+          />
+          <button class="btn btn-gold" id="fetchBtn" ${loading ? 'disabled' : ''}>
+            ${loading && !isDownloading ? '<span class="spinner"></span>' : '🔍'} Fetch Info
+          </button>
+        </div>
+      </div>
+
+      ${error ? `<div class="status-msg status-error">⚠ ${error}</div>` : ''}
+
+      ${info ? `
+        <!-- VIDEO PREVIEW -->
+        <div class="preview">
+          <div class="thumb-wrap">
+            ${info.thumbnail ? `<img src="${info.thumbnail}" alt="thumbnail" onerror="this.style.display='none'"/>` : ''}
+            <div class="platform-badge">${info.platform}</div>
+          </div>
+          <div class="meta">
+            <div class="meta-title">${info.title}</div>
+            <div class="meta-row">
+              <span>⏱ ${formatDuration(info.duration)}</span>
+              ${info.uploader ? `<span>👤 ${info.uploader}</span>` : ''}
+              ${formatViews(info.view_count) ? `<span>👁 ${formatViews(info.view_count)}</span>` : ''}
+            </div>
+          </div>
+        </div>
+
+        <hr class="divider"/>
+
+        <!-- MEDIA TYPE TOGGLE -->
+        <div class="toggle-row">
+          <div class="toggle-btn ${mediaType==='video'?'active':''}" data-type="video">
+            🎬 Video
+          </div>
+          <div class="toggle-btn ${mediaType==='audio'?'active':''}" data-type="audio">
+            🎵 Audio Only
+          </div>
+        </div>
+
+        <!-- QUALITY -->
+        <div class="quality-section">
+          <div class="url-label">✨ Select Quality</div>
+          <div class="quality-grid">
+            ${formats ? formats.map(f => `
+              <div class="quality-chip ${selectedFormat?.format_id===f.format_id?'active':''}" 
+                   data-fid="${f.format_id}"
+                   data-label="${f.label}" 
+                   data-ext="${f.ext||'mp4'}"
+                   data-type="${f.type}">
+                ${f.label}
+                ${f.filesize ? `<span style="opacity:.5;font-size:10px"> · ${formatFilesize(f.filesize)}</span>` : ''}
+              </div>
+            `).join('') : ''}
+          </div>
+        </div>
+
+        <hr class="divider"/>
+
+        <!-- PROGRESS -->
+        ${isDownloading || downloadReady ? `
+          <div class="progress-wrap">
+            <div class="progress-header">
+              <span>${
+                progressStatus === 'processing' ? '⚙ Post-processing...' :
+                progressStatus === 'starting' ? '🔄 Starting...' :
+                downloadReady ? '✅ Ready to Save!' :
+                `⬇ Downloading...`
+              }</span>
+              <span>${Math.round(progress)}%</span>
+            </div>
+            <div class="progress-bar-bg">
+              <div class="progress-bar ${isDownloading?'pulse':''}" style="width:${progress}%"></div>
+            </div>
+          </div>
+        ` : ''}
+
+        ${downloadReady ? `
+          <div class="status-msg status-success">
+            🎉 Download complete! Click the button to save your file.
+          </div>
+          <button class="btn btn-gold" id="saveBtn" style="width:100%; justify-content:center; padding:16px;">
+            ⬇ Save File
+          </button>
+        ` : !isDownloading ? `
+          <button class="btn btn-gold" id="dlBtn" style="width:100%; justify-content:center; padding:16px;" ${!selectedFormat?'disabled':''}>
+            ${loading ? '<span class="spinner"></span>' : '⬇'} Download ${mediaType === 'audio' ? 'Audio' : 'Video'}
+          </button>
+        ` : `
+          <button class="btn btn-gold" style="width:100%; justify-content:center; padding:16px;" disabled>
+            <span class="spinner"></span> Downloading...
+          </button>
+        `}
+      ` : `
+        <!-- EMPTY STATE -->
+        <div style="text-align:center; padding: 40px 20px;">
+          <div style="font-size:48px; margin-bottom:16px;">📥</div>
+          <div style="font-weight:700; font-size:18px; margin-bottom:8px;">Paste a URL to get started</div>
+          <div style="color:var(--muted); font-family:'DM Mono',monospace; font-size:12px; line-height:1.8;">
+            YouTube · Instagram · Twitter · TikTok · Facebook<br/>
+            Vimeo · Twitch · Reddit · and 1000+ more sites
+          </div>
+        </div>
+      `}
+    </div>
+
+    <!-- HISTORY -->
+    ${history.length > 0 ? `
+      <div class="history-section fade-in">
+        <div class="section-label">Recent Downloads</div>
+        ${history.map(h => `
+          <div class="history-item">
+            <div class="history-icon">${h.type==='audio'?'🎵':'🎬'}</div>
+            <div style="flex:1;overflow:hidden;">
+              <div class="history-title">${h.title}</div>
+              <div class="history-meta">${h.platform} · ${h.quality} · ${h.type}</div>
+            </div>
+            <button class="history-dl-btn" data-task="${h.taskId}">⬇ Save</button>
+          </div>
+        `).join('')}
+      </div>
+    ` : ''}
+
+    <!-- FOOTER -->
+    <div class="footer">
+      Built with <span>yt-dlp</span> · Supports <span>1000+</span> platforms · Run server locally
+    </div>
+  `;
+
+  // ── Event listeners ──
+  const urlInput = document.getElementById('urlInput');
+  if (urlInput) {
+    urlInput.addEventListener('input', e => { state.url = e.target.value; });
+    urlInput.addEventListener('keydown', e => { if (e.key === 'Enter') fetchInfo(); });
+  }
+
+  document.getElementById('fetchBtn')?.addEventListener('click', fetchInfo);
+  document.getElementById('dlBtn')?.addEventListener('click', startDownload);
+  document.getElementById('saveBtn')?.addEventListener('click', () => triggerFileDownload(taskId));
+
+  document.querySelectorAll('.toggle-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const type = btn.dataset.type;
+      const newFormats = type === 'video' ? info?.formats : info?.audio_formats;
+      setState({ mediaType: type, selectedFormat: newFormats?.[0] || null });
+    });
+  });
+
+  document.querySelectorAll('.quality-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      setState({ selectedFormat: { format_id: chip.dataset.fid, label: chip.dataset.label, ext: chip.dataset.ext, type: chip.dataset.type } });
+    });
+  });
+
+  document.querySelectorAll('.history-dl-btn').forEach(btn => {
+    btn.addEventListener('click', () => triggerFileDownload(btn.dataset.task));
+  });
+}
+
+// Initial render
+render();
+</script>
+</body>
+</html>
