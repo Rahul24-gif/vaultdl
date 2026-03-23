@@ -24,6 +24,10 @@ COMMON_OPTS = {
     'quiet': True,
     'no_warnings': True,
     'nocheckcertificate': True,
+    
+    # 👇 Agar aapne cookies.txt file upload ki hai, toh niche wali line ke aage se '#' hata dein
+    # 'cookiefile': 'cookies.txt', 
+    
     'http_headers': {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
@@ -32,7 +36,8 @@ COMMON_OPTS = {
     },
     'extractor_args': {
         'youtube': {
-            'player_client': ['android', 'web'],
+            # 👇 Naye player clients jo 403 Forbidden ko bypass karte hain
+            'player_client': ['web_embedded', 'tv', 'web'],
         }
     },
 }
