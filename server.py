@@ -16,6 +16,7 @@ CORS(app)
 DOWNLOAD_DIR = os.path.join(os.path.dirname(__file__), "downloads")
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
+# In-memory progress tracker
 progress_store = {}
 
 # ── Common yt-dlp options to bypass 403 ──────────────────────────────
@@ -23,6 +24,10 @@ COMMON_OPTS = {
     'quiet': True,
     'no_warnings': True,
     'nocheckcertificate': True,
+    
+    # 👇 OPTION 2: Railway ko IPv4 use karne ke liye force karna
+    'source_address': '0.0.0.0', 
+    
     'http_headers': {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
@@ -31,7 +36,7 @@ COMMON_OPTS = {
     },
     'extractor_args': {
         'youtube': {
-            'player_client': ['android', 'web'],
+            'player_client': ['web_embedded', 'tv', 'web'],
         }
     },
 }
@@ -51,6 +56,7 @@ def get_info():
         formats = []
         seen = set()
 
+        # Video formats
         for f in info.get('formats', []):
             if f.get('vcodec') != 'none' and f.get('height'):
                 height = f.get('height')
@@ -66,7 +72,10 @@ def get_info():
                         'fps': f.get('fps'),
                     })
 
+        # Sort video by quality descending
         formats = sorted(formats, key=lambda x: int(x['label'].replace('p', '')), reverse=True)
+
+        # Add Best Video option at top
         formats.insert(0, {
             'format_id': 'bestvideo+bestaudio/best',
             'label': 'Best Quality',
@@ -74,6 +83,7 @@ def get_info():
             'ext': 'mp4'
         })
 
+        # Audio formats
         audio_formats = [
             {'format_id': 'bestaudio/best', 'label': '320 kbps (Best)', 'type': 'audio', 'ext': 'mp3'},
             {'format_id': 'bestaudio[abr<=192]', 'label': '192 kbps', 'type': 'audio', 'ext': 'mp3'},
@@ -149,6 +159,7 @@ def start_download():
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 ydl.download([url])
 
+            # Find the downloaded file
             files = [f for f in os.listdir(DOWNLOAD_DIR) if f.startswith(task_id)]
             if files:
                 progress_store[task_id]['status'] = 'done'
@@ -163,6 +174,7 @@ def start_download():
 
     thread = threading.Thread(target=do_download, daemon=True)
     thread.start()
+
     return jsonify({'task_id': task_id})
 
 
@@ -200,4 +212,5 @@ def cleanup(task_id):
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     print(f"🚀 VaultDL Server running on port {port}")
+    print("📁 Downloads folder:", DOWNLOAD_DIR)
     app.run(debug=False, host='0.0.0.0', port=port)
