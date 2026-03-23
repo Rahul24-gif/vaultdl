@@ -4,10 +4,9 @@ Run: pip install flask flask-cors yt-dlp && python server.py
 """
 
 import os
-import json
 import threading
 import uuid
-from flask import Flask, request, jsonify, send_file, Response, stream_with_context
+from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 import yt_dlp
 
@@ -20,13 +19,23 @@ os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 # In-memory progress tracker
 progress_store = {}
 
-
-def get_ydl_opts_info(url):
-    return {
-        'quiet': True,
-        'no_warnings': True,
-        'skip_download': True,
-    }
+# ── Common yt-dlp options to bypass 403 ──────────────────────────────
+COMMON_OPTS = {
+    'quiet': True,
+    'no_warnings': True,
+    'nocheckcertificate': True,
+    'http_headers': {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'en-us,en;q=0.5',
+        'Sec-Fetch-Mode': 'navigate',
+    },
+    'extractor_args': {
+        'youtube': {
+            'player_client': ['android', 'web'],
+        }
+    },
+}
 
 
 @app.route('/api/info', methods=['GET'])
@@ -36,7 +45,8 @@ def get_info():
         return jsonify({'error': 'URL is required'}), 400
 
     try:
-        with yt_dlp.YoutubeDL({'quiet': True, 'skip_download': True, 'no_warnings': True}) as ydl:
+        opts = {**COMMON_OPTS, 'skip_download': True}
+        with yt_dlp.YoutubeDL(opts) as ydl:
             info = ydl.extract_info(url, download=False)
 
         formats = []
@@ -59,10 +69,15 @@ def get_info():
                     })
 
         # Sort video by quality descending
-        formats = sorted(formats, key=lambda x: int(x['label'].replace('p','')), reverse=True)
+        formats = sorted(formats, key=lambda x: int(x['label'].replace('p', '')), reverse=True)
 
         # Add Best Video option at top
-        formats.insert(0, {'format_id': 'bestvideo+bestaudio/best', 'label': 'Best Quality', 'type': 'video', 'ext': 'mp4'})
+        formats.insert(0, {
+            'format_id': 'bestvideo+bestaudio/best',
+            'label': 'Best Quality',
+            'type': 'video',
+            'ext': 'mp4'
+        })
 
         # Audio formats
         audio_formats = [
@@ -91,7 +106,7 @@ def start_download():
     data = request.get_json()
     url = data.get('url', '').strip()
     format_id = data.get('format_id', 'bestvideo+bestaudio/best')
-    media_type = data.get('type', 'video')  # 'video' or 'audio'
+    media_type = data.get('type', 'video')
 
     if not url:
         return jsonify({'error': 'URL is required'}), 400
@@ -107,7 +122,7 @@ def start_download():
                 pct_str = d.get('_percent_str', '0%').strip().replace('%', '')
                 try:
                     pct = float(pct_str)
-                except:
+                except Exception:
                     pct = 0
                 progress_store[task_id]['status'] = 'downloading'
                 progress_store[task_id]['percent'] = pct
@@ -117,10 +132,10 @@ def start_download():
 
         if media_type == 'audio':
             ydl_opts = {
+                **COMMON_OPTS,
                 'format': format_id,
                 'outtmpl': output_template,
                 'progress_hooks': [progress_hook],
-                'quiet': True,
                 'postprocessors': [{
                     'key': 'FFmpegExtractAudio',
                     'preferredcodec': 'mp3',
@@ -129,10 +144,10 @@ def start_download():
             }
         else:
             ydl_opts = {
+                **COMMON_OPTS,
                 'format': format_id,
                 'outtmpl': output_template,
                 'progress_hooks': [progress_hook],
-                'quiet': True,
                 'merge_output_format': 'mp4',
             }
 
@@ -175,7 +190,6 @@ def download_file(task_id):
     if not os.path.exists(filepath):
         return jsonify({'error': 'File not found on disk'}), 404
 
-    # Clean filename (remove task_id prefix)
     clean_name = info['filename'].replace(f"{task_id}_", "", 1)
     return send_file(filepath, as_attachment=True, download_name=clean_name)
 
@@ -196,3 +210,4 @@ if __name__ == '__main__':
     print(f"🚀 VaultDL Server running on port {port}")
     print("📁 Downloads folder:", DOWNLOAD_DIR)
     app.run(debug=False, host='0.0.0.0', port=port)
+
